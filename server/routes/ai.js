@@ -54,6 +54,16 @@ async function nadjiIliNapravi(conversationId, userId, naslov) {
   return razgovor;
 }
 
+const OPERACIJE = {
+  sazimanje: "Sažmi materijal na srpskom i izvuci ključne teze.",
+  uproscavanje: "Objasni materijal jednostavnim jezikom, kao nekome ko se prvi put susreće sa temom. Izbegavaj nepotreban žargon.",
+  struktura: "Izvuci strukturu materijala — predloži logične podnaslove i organizaciju sadržaja po celinama.",
+  fokus: "Objasni na koje delove materijala korisnik treba da se fokusira i obrazloži zašto su ti delovi najvažniji.",
+  prevod: "Prevedi materijal na jezik koji korisnik traži (podrazumevano srpski), uz očuvanje stručne terminologije.",
+  pitanje: "Odgovori na korisnikovo pitanje isključivo na osnovu priloženog materijala. Ako odgovor nije u materijalu, jasno to napiši umesto da pretpostavljaš.",
+  citiranje: "Pronađi bibliografske podatke i sastavi bibliografsku jedinicu u APA (7), MLA (9), Harvard i IEEE formatu. Ne izmišljaj podatke — za ono što ne možeš pronaći napiši [dopuniti].",
+  opste: "Odgovori korisniku kao asistent za akademsko istraživanje.",
+};
 
 router.post("/summarize", auth, async (req, res) => {
   try {
@@ -90,7 +100,7 @@ router.post("/pdf", auth, upload.single("pdf"), async (req, res) => {
     try {
       podaci = await parser.getText();
     } finally {
-      await parser.destroy(); 
+      await parser.destroy();
     }
     let tekst = (podaci.text || "").trim();
     const brojStrana = podaci.total ?? podaci.pages?.length ?? "?";
@@ -159,14 +169,14 @@ router.post("/cite", auth, async (req, res) => {
     const razgovor = await Conversation.findOne({ _id: conversationId, userId: req.userId });
     if (!razgovor) return res.status(404).json({ error: "Razgovor nije pronađen" });
 
-    
+
     const dokument = await Document.findOne({ conversationId, userId: req.userId })
       .sort({ createdAt: -1 });
     if (!dokument) {
       return res.status(404).json({ error: "U ovom razgovoru nema otpremljenog PDF-a." });
     }
 
-    
+
     const pocetak = dokument.tekst.slice(0, 5000);
 
     const prompt = `Ti si asistent za akademsko citiranje. Na osnovu početka naučnog rada ispod, pronađi bibliografske podatke i sastavi bibliografsku jedinicu.
@@ -208,6 +218,89 @@ ${pocetak}`;
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Greška pri generisanju literature" });
+  }
+});
+
+// RAZGOVORNI REŽIM — sistem sam prepoznaje nameru
+router.post("/chat", auth, async (req, res) => {
+  try {
+    const { poruka, conversationId } = req.body;
+    if (!poruka) return res.status(400).json({ error: "Nema poruke" });
+
+    const naslov = poruka.slice(0, 40) + (poruka.length > 40 ? "..." : "");
+    const razgovor = await nadjiIliNapravi(conversationId, req.userId, naslov);
+
+    // KONTEKST: poslednjih 6 poruka razgovora
+    const prethodne = await Message.find({ conversationId: razgovor._id })
+      .sort({ createdAt: -1 }).limit(6);
+    const kontekst = prethodne.reverse()
+      .map((p) => `${p.uloga === "user" ? "Korisnik" : "Asistent"}: ${p.sadrzaj.slice(0, 1500)}`)
+      .join("\n\n");
+
+    // MATERIJAL: poslednji otpremljen PDF u ovom razgovoru
+    const dokument = await Document.findOne({ conversationId: razgovor._id, userId: req.userId })
+      .sort({ createdAt: -1 });
+    const materijal = dokument
+      ? `\n\nOTPREMLJEN DOKUMENT ("${dokument.naziv}"):\n${dokument.tekst.slice(0, 20000)}\n`
+      : "";
+
+    // KORAK 1 — prepoznavanje namere
+    const promptNamera = `Analiziraj zahtev korisnika i odredi koju operaciju traži.
+
+Moguće operacije:
+- "sazimanje" — traži sažetak, skraćivanje, suštinu
+- "uproscavanje" — traži jednostavnije objašnjenje
+- "struktura" — traži podnaslove, strukturu, organizaciju sadržaja
+- "fokus" — pita na šta da se fokusira, šta je najbitnije
+- "prevod" — traži prevod
+- "citiranje" — traži literaturu, referencu, bibliografsku jedinicu
+- "pitanje" — postavlja konkretno pitanje o materijalu
+- "opste" — sve ostalo
+
+Odgovori ISKLJUČIVO JSON objektom, bez dodatnog teksta i bez markdown oznaka:
+{"operacija": "...", "obrazlozenje": "kratko obrazloženje u 5-10 reči"}
+
+ZAHTEV KORISNIKA:
+${poruka.slice(0, 3000)}`;
+
+    let operacija = "opste";
+    let obrazlozenje = "";
+    try {
+      const sirovo = await pozoviAI(promptNamera);
+      const cisto = sirovo.replace(/```json|```/g, "").trim();
+      const parsirano = JSON.parse(cisto);
+      if (OPERACIJE[parsirano.operacija]) {
+        operacija = parsirano.operacija;
+        obrazlozenje = parsirano.obrazlozenje || "";
+      }
+    } catch (e) {
+      operacija = "opste"; // ako prepoznavanje ne uspe, nastavi kao opšti zahtev
+    }
+
+    // KORAK 2 — izvršavanje prepoznate operacije
+    const promptIzvrsenje = `Ti si asistent za akademsko istraživanje. Odgovaraš na srpskom jeziku, jasno i strukturirano (koristi Markdown).
+
+ZADATAK: ${OPERACIJE[operacija]}
+${kontekst ? `\nPRETHODNI TOK RAZGOVORA:\n${kontekst}\n` : ""}${materijal}
+AKTUELNI ZAHTEV KORISNIKA:
+${poruka}
+
+Ako korisnik traži operaciju nad materijalom, a materijal nije priložen ni u poruci ni ranije u razgovoru, ljubazno zatraži da ga priloži.`;
+
+    const odgovor = await pozoviAI(promptIzvrsenje);
+
+    await Message.create({ conversationId: razgovor._id, uloga: "user", sadrzaj: poruka });
+    await Message.create({
+      conversationId: razgovor._id, uloga: "assistant", sadrzaj: odgovor, operacija,
+    });
+
+    razgovor.updatedAt = new Date();
+    await razgovor.save();
+
+    res.json({ result: odgovor, conversationId: razgovor._id, operacija, obrazlozenje });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Greška pri obradi zahteva" });
   }
 });
 

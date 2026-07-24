@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 
 const API = "http://localhost:5000";
 
@@ -67,24 +68,22 @@ function Home() {
     setGreska(""); setUcitavanje(true);
     const mojTekst = text;
     setText("");
-
     setPoruke((p) => [...p, { uloga: "user", sadrzaj: mojTekst, _id: "temp" }]);
     try {
       const odg = await axios.post(
-        `${API}/api/ai/summarize`,
-        { text: mojTekst, conversationId: aktivniId },
+        `${API}/api/ai/chat`,
+        { poruka: mojTekst, conversationId: aktivniId },
         authHeader
       );
-      setPoruke((p) => [...p, { uloga: "assistant", sadrzaj: odg.data.result, _id: "temp2" }]);
-      if (!aktivniId) {
-        setAktivniId(odg.data.conversationId);
-        ucitajRazgovore();
-      } else {
-        ucitajRazgovore();
-      }
+      setPoruke((p) => [...p, {
+        uloga: "assistant", sadrzaj: odg.data.result,
+        operacija: odg.data.operacija, _id: "temp2",
+      }]);
+      if (!aktivniId) setAktivniId(odg.data.conversationId);
+      ucitajRazgovore();
     } catch (err) {
       if (err.response?.status === 401) { odjava(); return; }
-      setGreska("Greška pri sažimanju.");
+      setGreska("Greška pri obradi zahteva.");
     } finally {
       setUcitavanje(false);
     }
@@ -189,7 +188,15 @@ function Home() {
                 whiteSpace: "pre-wrap"
               }}>
               <strong>{p.uloga === "user" ? "Ti" : "Asistent"}:</strong>
-              <div style={{ marginTop: 6 }}>{p.sadrzaj}</div>
+              {p.operacija && (
+                <span style={{
+                  marginLeft: 8, fontSize: 12, padding: "2px 8px",
+                  background: "#dde6ff", borderRadius: 10, color: "#334"
+                }}>
+                  {p.operacija}
+                </span>
+              )}
+              <div style={{ marginTop: 6 }}><ReactMarkdown>{p.sadrzaj}</ReactMarkdown></div>
             </div>
           ))}
           {ucitavanje && <p style={{ color: "#888" }}>Asistent razmišlja...</p>}
@@ -210,11 +217,11 @@ function Home() {
             </button>
           </div>
           <textarea value={text} onChange={(e) => setText(e.target.value)}
-            placeholder="Nalepi tekst za sažimanje..." rows={4}
+            placeholder="Napiši šta ti treba — npr. 'skrati mi ovaj tekst', 'objasni jednostavnije', 'daj mi literaturu'..." rows={4}
             style={{ width: "100%", padding: 10, fontSize: 15, boxSizing: "border-box" }} />
           <button onClick={posalji} disabled={ucitavanje || !text}
             style={{ marginTop: 8, padding: "10px 24px", fontSize: 15, cursor: "pointer" }}>
-            {ucitavanje ? "Sažimam..." : "Sažmi"}
+            {ucitavanje ? "Obrađujem..." : "Pošalji"}
           </button>
         </div>
       </div>
