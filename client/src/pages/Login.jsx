@@ -23,20 +23,18 @@ function Login() {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "80px auto", fontFamily: "sans-serif" }}>
-      <h1>Prijava</h1>
-      <input type="email" placeholder="Email" value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{ width: "100%", padding: 10, marginBottom: 10, fontSize: 16 }} />
-      <input type="password" placeholder="Lozinka" value={lozinka}
-        onChange={(e) => setLozinka(e.target.value)}
-        style={{ width: "100%", padding: 10, marginBottom: 10, fontSize: 16 }} />
-      <button onClick={prijava}
-        style={{ width: "100%", padding: 10, fontSize: 16, cursor: "pointer" }}>
-        Prijavi se
-      </button>
-      {greska && <p style={{ color: "red" }}>{greska}</p>}
-      <p style={{ marginTop: 15 }}>Nemaš nalog? <Link to="/register">Registruj se</Link></p>
+    <div className="auth">
+      <div className="auth-card">
+        <p className="auth-eyebrow">Akademski asistent</p>
+        <h1 className="auth-title">Prijavi se</h1>
+        {greska && <div className="notice notice-error">{greska}</div>}
+        <input className="input" type="email" placeholder="Email" value={email}
+          onChange={(e) => setEmail(e.target.value)} />
+        <input className="input" type="password" placeholder="Lozinka" value={lozinka}
+          onChange={(e) => setLozinka(e.target.value)} />
+        <button className="btn btn-primary" onClick={prijava}>Prijavi se</button>
+        <p className="auth-foot">Nemaš nalog? <Link to="/register">Registruj se</Link></p>
+      </div>
     </div>
   );
 }

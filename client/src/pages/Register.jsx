@@ -24,21 +24,21 @@ function Register() {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "80px auto", fontFamily: "sans-serif" }}>
-      <h1>Registracija</h1>
-      <input placeholder="Ime" value={ime} onChange={(e) => setIme(e.target.value)}
-        style={{ width: "100%", padding: 10, marginBottom: 10, fontSize: 16 }} />
-      <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-        style={{ width: "100%", padding: 10, marginBottom: 10, fontSize: 16 }} />
-      <input type="password" placeholder="Lozinka" value={lozinka} onChange={(e) => setLozinka(e.target.value)}
-        style={{ width: "100%", padding: 10, marginBottom: 10, fontSize: 16 }} />
-      <button onClick={registracija}
-        style={{ width: "100%", padding: 10, fontSize: 16, cursor: "pointer" }}>
-        Registruj se
-      </button>
-      {poruka && <p style={{ color: "green" }}>{poruka}</p>}
-      {greska && <p style={{ color: "red" }}>{greska}</p>}
-      <p style={{ marginTop: 15 }}>Već imaš nalog? <Link to="/login">Prijavi se</Link></p>
+    <div className="auth">
+      <div className="auth-card">
+        <p className="auth-eyebrow">Akademski asistent</p>
+        <h1 className="auth-title">Napravi nalog</h1>
+        {greska && <div className="notice notice-error">{greska}</div>}
+        {poruka && <div className="notice notice-ok">{poruka}</div>}
+        <input className="input" placeholder="Ime" value={ime}
+          onChange={(e) => setIme(e.target.value)} />
+        <input className="input" type="email" placeholder="Email" value={email}
+          onChange={(e) => setEmail(e.target.value)} />
+        <input className="input" type="password" placeholder="Lozinka" value={lozinka}
+          onChange={(e) => setLozinka(e.target.value)} />
+        <button className="btn btn-primary" onClick={registracija}>Registruj se</button>
+        <p className="auth-foot">Već imaš nalog? <Link to="/login">Prijavi se</Link></p>
+      </div>
     </div>
   );
 }
