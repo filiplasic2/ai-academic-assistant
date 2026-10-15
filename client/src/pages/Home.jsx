@@ -185,7 +185,7 @@ function Home() {
               <div className="empty">
                 <h2>Na čemu radiš danas?</h2>
                 <p>Nalepi tekst ili priloži rad u PDF-u, pa napiši šta ti treba —
-                  sažetak, jednostavnije objašnjenje, literaturu ili odgovor na pitanje.</p>
+                  sažetak, jednostavnije objašnjenje, literatura ili odgovor na pitanje.</p>
               </div>
             )}
 

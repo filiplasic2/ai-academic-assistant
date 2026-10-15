@@ -135,9 +135,11 @@ router.post("/pdf", auth, upload.single("pdf"), async (req, res) => {
       sadrzaj: `[PDF] ${req.file.originalname} — ${brojStrana} str.${skracen ? " (analiziran samo početni deo)" : ""}`,
     });
 
-    const prompt = `Ti si asistent za akademsko istraživanje. Analiziraj sledeći naučni rad i odgovori na srpskom jeziku, po ovoj strukturi:
+    const prompt = `Ti si asistent za akademsko istraživanje. 
+    Analiziraj sledeći naučni rad i odgovori na srpskom jeziku, po ovoj strukturi:
 
-1. Osnovni podaci o radu (autor/i, naslov, godina, časopis — ako se mogu pronaći u tekstu; ako ne, napiši "nije pronađeno")
+1. Osnovni podaci o radu (autor/i, naslov, godina, časopis — ako se mogu pronaći u tekstu;
+ ako ne, napiši "nije pronađeno")
 2. Kratak sažetak rada (5-6 rečenica)
 3. Ključni nalazi (u tačkama)
 4. Korišćena metodologija
@@ -179,7 +181,8 @@ router.post("/cite", auth, async (req, res) => {
 
     const pocetak = dokument.tekst.slice(0, 5000);
 
-    const prompt = `Ti si asistent za akademsko citiranje. Na osnovu početka naučnog rada ispod, pronađi bibliografske podatke i sastavi bibliografsku jedinicu.
+    const prompt = `Ti si asistent za akademsko citiranje. Na osnovu početka naučnog rada ispod,
+     pronađi bibliografske podatke i sastavi bibliografsku jedinicu.
 
 Odgovori na srpskom, ovom strukturom:
 
@@ -197,7 +200,8 @@ Odgovori na srpskom, ovom strukturom:
 - Harvard:
 - IEEE:
 
-VAŽNO: ne izmišljaj podatke. Za svaki podatak koji ne možeš pouzdano da pronađeš u tekstu napiši "NIJE PRONAĐENO", a u citatu ostavi oznaku [dopuniti]. Na kraju dodaj kratku napomenu da korisnik treba da proveri podatke pre upotrebe u radu.
+VAŽNO: ne izmišljaj podatke. Za svaki podatak koji ne možeš pouzdano da pronađeš u tekstu napiši "NIJE PRONAĐENO",
+ a u citatu ostavi oznaku [dopuniti]. Na kraju dodaj kratku napomenu da korisnik treba da proveri podatke pre upotrebe u radu.
 
 TEKST (početak rada "${dokument.naziv}"):
 ${pocetak}`;
@@ -221,7 +225,7 @@ ${pocetak}`;
   }
 });
 
-// RAZGOVORNI REŽIM — sistem sam prepoznaje nameru
+// RAZGOVORNI REŽIM (prepoznavanje namere)
 router.post("/chat", auth, async (req, res) => {
   try {
     const { poruka, conversationId } = req.body;
@@ -230,14 +234,14 @@ router.post("/chat", auth, async (req, res) => {
     const naslov = poruka.slice(0, 40) + (poruka.length > 40 ? "..." : "");
     const razgovor = await nadjiIliNapravi(conversationId, req.userId, naslov);
 
-    // KONTEKST: poslednjih 6 poruka razgovora
+    // KONTEKST
     const prethodne = await Message.find({ conversationId: razgovor._id })
       .sort({ createdAt: -1 }).limit(6);
     const kontekst = prethodne.reverse()
       .map((p) => `${p.uloga === "user" ? "Korisnik" : "Asistent"}: ${p.sadrzaj.slice(0, 1500)}`)
       .join("\n\n");
 
-    // MATERIJAL: poslednji otpremljen PDF u ovom razgovoru
+    // MATERIJAL (poslednji pdf u chatu)
     const dokument = await Document.findOne({ conversationId: razgovor._id, userId: req.userId })
       .sort({ createdAt: -1 });
     const materijal = dokument
@@ -278,14 +282,16 @@ ${poruka.slice(0, 3000)}`;
     }
 
     // KORAK 2 — izvršavanje prepoznate operacije
-    const promptIzvrsenje = `Ti si asistent za akademsko istraživanje. Odgovaraš na srpskom jeziku, jasno i strukturirano (koristi Markdown).
+    const promptIzvrsenje = `Ti si asistent za akademsko istraživanje.
+     Odgovaraš na srpskom jeziku, jasno i strukturirano (koristi Markdown).
 
 ZADATAK: ${OPERACIJE[operacija]}
 ${kontekst ? `\nPRETHODNI TOK RAZGOVORA:\n${kontekst}\n` : ""}${materijal}
 AKTUELNI ZAHTEV KORISNIKA:
 ${poruka}
 
-Ako korisnik traži operaciju nad materijalom, a materijal nije priložen ni u poruci ni ranije u razgovoru, ljubazno zatraži da ga priloži.`;
+Ako korisnik traži operaciju nad materijalom, a materijal nije priložen ni u poruci ni ranije u razgovoru,
+ ljubazno zatraži da ga priloži.`;
 
     const odgovor = await pozoviAI(promptIzvrsenje);
 

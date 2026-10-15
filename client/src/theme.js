@@ -1,4 +1,4 @@
-// učitava sačuvanu temu; ako je nema, prati sistemsko podešavanje
+// učitava sačuvanu temu, ako je nema, prati sistemsko podešavanje
 export function ucitajTemu() {
   const sacuvana = localStorage.getItem("tema");
   const sistemska = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
